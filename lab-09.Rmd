@@ -1,7 +1,7 @@
 ---
 title: "Lab 09: Algorithmic Bias"
-author: "Insert your name here"
-date: "Insert date here"
+author: "Allison Li"
+date: "20250407"
 output: github_document
 ---
 
@@ -10,8 +10,12 @@ output: github_document
 First, let's load the necessary packages:  
 
 ```{r load-packages, message = FALSE}
+##install.packages('fairness')
+##install.packages('janitor')
+
 library(tidyverse)
 library(fairness)
+library(janitor)
 ```
 
 ### The data
