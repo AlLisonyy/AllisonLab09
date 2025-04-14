@@ -198,7 +198,13 @@ accuracy <- mean(compas_accuracy$correct_prediction)
 print(paste("Overall accuracy of COMPAS:", round(accuracy * 100, 2), "%"))
 ```
 
+## Exercise 7
 
-## Additional Exercises  
+According to the actual correlation and the prediction between the risk scores and actual recidivism, the relationship of the actual one is moderate and less strong than the prediction. The results suggest that while the COMPAS algorithm shows some predictive ability, it does not seem to align well with the actual correlation. 
+
+# Part 3
+## Exercise 8
 
 Almost there! Keep building on your work and follow the same structure for any remaining exercises. Each exercise builds on the last, so take your time and make sure your code is working as expected.  
+
+
