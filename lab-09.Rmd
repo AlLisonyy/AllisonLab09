@@ -10,20 +10,192 @@ output: github_document
 First, let's load the necessary packages:  
 
 ```{r load-packages, message = FALSE}
-##install.packages('fairness')
+##install.packages('ggpubr')
 ##install.packages('janitor')
 
 library(tidyverse)
 library(fairness)
+library(ggplot2)
 library(janitor)
+library(ggpubr)
+
 ```
 
 ### The data
 
 For this lab, we'll use the COMPAS dataset compiled by ProPublica. The data has been preprocessed and cleaned for you. You'll have to load it yourself. The dataset is available in the `data` folder, but I've changed the file name from `compas-scores-two-years.csv` to `compas-scores-2-years.csv`. I've done this help you practice debugging code when you encounter an error.
 
-```{r}
-compas <- read_csv("data/compas-scores-two-years.csv")
+```{r clean data}
+compas <- read_csv("data/compas-scores-2-years.csv")%>%
+  clean_names() %>% 
+  rename(decile_score = decile_score_12,
+         priors_count = priors_count_15)
+
+# Take a look at the data
+glimpse(compas)
+```
+## Exercise 1
+
+The COMPAS dataset has `r nrow(compas)` variables and `r ncol(compas)` data/person. Each row in this dataset represents a person that was arrested, and each row represents the information collected about that person, mostly their demographic information and their prison or arrested information.
+
+## Exercise 2
+
+```{r repeated data}
+## I will try to examine if all the columns are unique defendants by looking at the names, age, and sex variables. If there are two people with same names, age, and sex, I will take a further look and see if they are actually the same person or not.
+repeated_people <- compas %>%
+  group_by(name, sex, age) %>%  # dob = date of birth if available
+  filter(n() > 1)
+print(repeated_people)
+
+## I only found two people with same age, sex, and names. After looking at their other information, such as DOB, I knew that they were not the same person. 
+## So in general, there is no repeated data, so the number of unique defendants are the same as the number of rows.
+```
+## Exercise 3
+
+```{r decile score distribution}
+ggplot(compas, aes(x = decile_score)) +
+  geom_histogram(binwidth = 1, color = "black", fill = "pink") +
+  labs(
+    title = "Distribution of COMPAS Risk Scores",
+    x = "Decile Score",
+    y = "Number of Defendants"
+  ) 
+
+```
+
+According to the graph, the distribution is right skewed, suggesting that most people in the dataset have a low risk score. 
+
+## Exercise 3
+
+```{r demographic distribution}
+## race
+compas_race <- compas %>%
+  mutate(
+    race = case_when(
+      race == "African-American" ~ 6,
+      race == "Asian" ~ 5,
+      race == "Caucasian" ~ 4,
+      race == "Hispanic" ~ 3,
+      race == "Native American" ~ 2,
+      race == "Other" ~ 1
+    )
+  )
+
+ggplot(compas_race, aes(x = race)) +
+  geom_histogram(binwidth = 1, color = "orange", fill = "tomato") + ##tomato loll
+  labs(
+    title = "Distribution of Defendants' Race",
+    x = "Race/Ethnicity",
+    y = "Number of Defendants"
+  ) 
+
+
+## sex
+compas_sex <- compas %>%
+  mutate(
+    sex = case_when(
+      sex == "Male" ~ 2,
+      sex == "Female" ~ 1
+    )
+  )
+
+ggplot(compas_sex, aes(x = sex)) +
+  geom_histogram(binwidth = 1, color = "lightblue", fill = "pink") + 
+  labs(
+    title = "Distribution of Defendants' Sex",
+    x = "Sex",
+    y = "Number of Defendants"
+  ) 
+
+## age
+compas_age <- compas %>%
+  mutate(
+    age_cat = case_when(
+      age_cat == "25 - 45" ~ 2,
+      age_cat == "Greater than 45" ~ 3,
+      age_cat == "Less than 25" ~ 1
+    )
+  )
+
+ggplot(compas_age, aes(x = age_cat)) +
+  geom_histogram(binwidth = 1, color = "yellow", fill = "lightgreen") +
+  labs(
+    title = "Distribution of Defendants' Age Period",
+    x = "Age Category",
+    y = "Number of Defendants"
+  ) 
+
+
+##extra challenge
+compas_three <- compas %>%
+  mutate(
+    race = case_when(
+      race == "African-American" ~ 6,
+      race == "Asian" ~ 5,
+      race == "Caucasian" ~ 4,
+      race == "Hispanic" ~ 3,
+      race == "Native American" ~ 2,
+      race == "Other" ~ 1),
+      sex = case_when(
+      sex == "Male" ~ 2,
+      sex == "Female" ~ 1),
+    age_cat = case_when(
+      age_cat == "25 - 45" ~ 2,
+      age_cat == "Greater than 45" ~ 3,
+      age_cat == "Less than 25" ~ 1
+    ))
+
+compas_three <- compas_three %>%
+  select(race, sex, age_cat) %>%
+  pivot_longer(cols = everything(), names_to = "demographic", values_to = "category") ##I asked GPT for help for this step.
+
+ggplot(compas_three, aes(x = category, fill = demographic)) +
+  geom_bar(position = "dodge", color = "yellow") +
+  facet_wrap(~ demographic, scales = "free_x") +
+  scale_fill_manual(values = c(
+    "race" = "tomato",
+    "sex" = "lightpink",
+    "age_cat" = "lightgreen"
+  )) +
+  labs(
+    title = "Demographic Distributions: Race, Sex, and Age Category",
+    x = "",
+    y = "Count"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Exercise 5
+
+```{r correlation graph}
+ggplot(compas, aes(x = decile_score, y = two_year_recid)) +
+  geom_smooth(method = "lm", formula = y ~ x, color = "blue") +
+  stat_cor(method = "pearson", label.x = 2, label.y = 1) +
+  theme_bw() +
+  labs(
+    x = "Two-Year Recidivism (0 = No, 1 = Yes)",
+    y = "Risk Scores",
+    title = "Relationship Between Risk Scores and Actual Recidivism"
+  )
+
+```
+
+According to the graph, it shows that there is a positive correlation between two year recidivism and risk scores. This relationship suggests that higher risk score is actually related with higher rates of recidivism.
+
+## Exercise 6
+
+```{r correct prediction}
+compas_accuracy <- compas %>%
+  mutate(
+    correct_prediction = case_when(
+      decile_score >= 7 & two_year_recid == 1 ~ 1,
+      decile_score <= 4 & two_year_recid == 0 ~ 1,
+      TRUE ~ 0
+    )
+  )
+
+accuracy <- mean(compas_accuracy$correct_prediction)
+print(paste("Overall accuracy of COMPAS:", round(accuracy * 100, 2), "%"))
 ```
 
 
