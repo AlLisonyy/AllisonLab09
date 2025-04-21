@@ -205,6 +205,143 @@ According to the actual correlation and the prediction between the risk scores a
 # Part 3
 ## Exercise 8
 
-Almost there! Keep building on your work and follow the same structure for any remaining exercises. Each exercise builds on the last, so take your time and make sure your code is working as expected.  
+```{r black and white defendants}
 
+filtered_data <- compas %>%
+  filter(race %in% c("African-American", "Caucasian"))
+
+score_distribution <- filtered_data %>%
+  group_by(race, decile_score) %>%
+  summarise(count = n(), .groups = "drop")
+
+ggplot(score_distribution, aes(x = decile_score, y = count, color = race)) +
+  geom_line(size = 1) +
+  geom_point(size = 1.2) +
+  labs(
+    title = "Relationship Between Risk Scores and Actual Recidivism",
+    x = "Decile Score",
+    y = "Number of Defendants",
+    color = "Race"
+  ) 
+
+```
+
+There is a notable difference between black and white defendants, that the line representing African-Americans was flatter, indicating that African-American individuals were identified as having higher risk scores more frequently than to white defendants. 
+
+## Exercise 9
+
+```{r}
+highrisk_summary <- filtered_data %>%
+  mutate(high_risk = decile_score >= 7) %>%
+  group_by(race) %>%
+  summarise(
+    total = n(),
+    high_risk_n = sum(high_risk),
+    high_risk_percent = round(100 * mean(high_risk), 2)
+  )
+print(highrisk_summary)
+```
+
+According to the results, 38.56% of Black defendants were identified as high risk, while 17.07% of White defendants were identified as high risk, indicating that there is a more than twice larger disparity. 
+
+## Exercise 10
+
+```{r metrics}
+
+##False Positive Rate
+non_recidivists <- compas %>%
+  filter(two_year_recid == 0)%>%
+  filter(race %in% c("African-American", "Caucasian")) %>%
+  mutate(high_risk = decile_score >= 7) %>%
+  group_by(race) %>%
+  summarise(
+    total_non_recidivists = n(),
+    false_positives = sum(high_risk),
+    false_positive_rate = round(100 * mean(high_risk), 2)
+  )
+
+##False Negative Rate
+recidivists <- compas %>%
+  filter(two_year_recid == 1) %>%
+  filter(race %in% c("African-American", "Caucasian")) %>%
+  mutate(low_risk = decile_score <= 4) %>%
+  group_by(race) %>%
+  summarise(
+    total_recidivists = n(),
+    false_negatives = sum(low_risk),
+    false_negative_rate = round(100 * mean(low_risk), 2)
+  )
+
+print(fpr)
+print(fnr)
+
+```
+
+## Exercise 11
+
+```{r}
+fpr <- compas %>%
+  filter(race %in% c("African-American", "Caucasian"), two_year_recid == 0) %>%
+  mutate(high_risk = decile_score >= 7) %>%
+  group_by(race) %>%
+  summarise(rate = mean(high_risk), .groups = "drop") %>%
+  mutate(metric = "False Positive Rate")
+fnr <- compas %>%
+  filter(race %in% c("African-American", "Caucasian"), two_year_recid == 1) %>%
+  mutate(low_risk = decile_score <= 4) %>%
+  group_by(race) %>%
+  summarise(rate = mean(low_risk), .groups = "drop") %>%
+  mutate(metric = "False Negative Rate")
+
+metrics_df <- bind_rows(fpr, fnr)
+
+metrics_df <- metrics_df %>%
+  mutate(rate_percent = round(rate * 100, 2))
+
+##The visualization
+ggplot(metrics_df, aes(x = metric, y = rate_percent, fill = race)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "Compare the metrics between Black and white defendants",
+    x = "Metric",
+    y = "Rate (%)",
+    fill = "Race"
+  ) +
+  theme_minimal(base_size = 14) +
+  geom_text(aes(label = paste0(rate_percent, "%")), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5)
+```
+
+According to the graph, it is clear that Caucasian has a high rate in false negative rate, suggesting that White defendants were more likely to be viewed as not a criminal when they actually committed a crime. This rate is low for Black individuals in the study. Additionally, the false negative rate is higher for African-American people, suggesting that Black defendants were more likely to be considered as a criminal when they in fact did not committed a crime. 
+
+# Part 4
+## Exercise 12
+
+```{r}
+filtered_data <- compas %>%
+  filter(race %in% c("African-American", "Caucasian"))
+
+ggplot(filtered_data, aes(x = priors_count, y = decile_score, color = race)) +
+  geom_jitter(alpha = 0.4, width = 0.3, height = 0.3) + 
+  geom_smooth(method = "lm", se = FALSE, size = 1) +  
+  labs(
+    title = "Relationship Between Prior Convictions and COMPAS Risk Score by Race",
+    x = "Number of Prior Convictions",
+    y = "Risk Score (Decile)",
+    color = "Race"
+  ) 
+```
+
+In general, although both racial groups' correlations suggested that higher risk score was associated with more number of prior convictions, there is a small differences between the two racial groups. It seems that with same amount of convictions, black people were identified as having higher risk scores than white, but the difference is small and seemed to disappear when the number of convictions is higher.
+
+## Exercise 13
+
+Based on the previous analyses, I think in terms of the error rates (false positive and false negative), there is a bias in the algorithm, indicating that Black individuals in the dataset are more likely to be considered as criminals when they are actually not. In terms of calibration, the algorithm tends to view Black individuals having higher risk scores when White and Black individuals committeed the same amount of crime. However, this difference became smaller and changed to the opposite when the number of prior convictions become around 23. In general, I think the algorithm is biased (if I understand the questions and analyses correctly).
+
+# Part 5
+## Exercise 14
+I would first control for the race/ethnicity of the individuals in the dataset while creating the algorithm. More specifically, I would try to equalize the false positive and false negative rates across racial and gender groups. I would minimize racial disparities by ensuring that the algorithm does not produce systematically higher scores for one group over another. Additionally, to make it more fair, I would take the degree of crime into account when creating the algorithm. For example, the number of juvenile felonies should be weighted more heavily than the  number of juvenile misdemeanors.
+
+## Exercise 15
 
