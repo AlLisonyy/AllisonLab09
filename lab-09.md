@@ -8,13 +8,14 @@ Allison Li
 First, let’s load the necessary packages:
 
 ``` r
-##install.packages('fairness')
+##install.packages('ggpubr')
 ##install.packages('janitor')
 
 library(tidyverse)
 library(fairness)
 library(ggplot2)
 library(janitor)
+library(ggpubr)
 ```
 
 ### The data
@@ -166,18 +167,19 @@ that most people in the dataset have a low risk score.
 
 ``` r
 ## race
-compas <- compas %>%
+compas_race <- compas %>%
   mutate(
     race = case_when(
-      race == "African-American" ~ 5,
-      race == "Asian" ~ 4,
-      race == "Caucasian" ~ 3,
-      race == "Hispanic" ~ 2,
+      race == "African-American" ~ 6,
+      race == "Asian" ~ 5,
+      race == "Caucasian" ~ 4,
+      race == "Hispanic" ~ 3,
+      race == "Native American" ~ 2,
       race == "Other" ~ 1
     )
   )
 
-ggplot(compas, aes(x = race)) +
+ggplot(compas_race, aes(x = race)) +
   geom_histogram(binwidth = 1, color = "orange", fill = "tomato") + ##tomato loll
   labs(
     title = "Distribution of Defendants' Race",
@@ -186,13 +188,575 @@ ggplot(compas, aes(x = race)) +
   ) 
 ```
 
-    ## Warning: Removed 18 rows containing non-finite outside the scale range
-    ## (`stat_bin()`).
-
 ![](lab-09_files/figure-gfm/demographic%20distribution-1.png)<!-- -->
 
-## Additional Exercises
+``` r
+## sex
+compas_sex <- compas %>%
+  mutate(
+    sex = case_when(
+      sex == "Male" ~ 2,
+      sex == "Female" ~ 1
+    )
+  )
 
-Almost there! Keep building on your work and follow the same structure
-for any remaining exercises. Each exercise builds on the last, so take
-your time and make sure your code is working as expected.
+ggplot(compas_sex, aes(x = sex)) +
+  geom_histogram(binwidth = 1, color = "lightblue", fill = "pink") + 
+  labs(
+    title = "Distribution of Defendants' Sex",
+    x = "Sex",
+    y = "Number of Defendants"
+  ) 
+```
+
+![](lab-09_files/figure-gfm/demographic%20distribution-2.png)<!-- -->
+
+``` r
+## age
+compas_age <- compas %>%
+  mutate(
+    age_cat = case_when(
+      age_cat == "25 - 45" ~ 2,
+      age_cat == "Greater than 45" ~ 3,
+      age_cat == "Less than 25" ~ 1
+    )
+  )
+
+ggplot(compas_age, aes(x = age_cat)) +
+  geom_histogram(binwidth = 1, color = "yellow", fill = "lightgreen") +
+  labs(
+    title = "Distribution of Defendants' Age Period",
+    x = "Age Category",
+    y = "Number of Defendants"
+  ) 
+```
+
+![](lab-09_files/figure-gfm/demographic%20distribution-3.png)<!-- -->
+
+``` r
+##extra challenge
+compas_three <- compas %>%
+  mutate(
+    race = case_when(
+      race == "African-American" ~ 6,
+      race == "Asian" ~ 5,
+      race == "Caucasian" ~ 4,
+      race == "Hispanic" ~ 3,
+      race == "Native American" ~ 2,
+      race == "Other" ~ 1),
+      sex = case_when(
+      sex == "Male" ~ 2,
+      sex == "Female" ~ 1),
+    age_cat = case_when(
+      age_cat == "25 - 45" ~ 2,
+      age_cat == "Greater than 45" ~ 3,
+      age_cat == "Less than 25" ~ 1
+    ))
+
+compas_three <- compas_three %>%
+  select(race, sex, age_cat) %>%
+  pivot_longer(cols = everything(), names_to = "demographic", values_to = "category") ##I asked GPT for help for this step.
+
+ggplot(compas_three, aes(x = category, fill = demographic)) +
+  geom_bar(position = "dodge", color = "yellow") +
+  facet_wrap(~ demographic, scales = "free_x") +
+  scale_fill_manual(values = c(
+    "race" = "tomato",
+    "sex" = "lightpink",
+    "age_cat" = "lightgreen"
+  )) +
+  labs(
+    title = "Demographic Distributions: Race, Sex, and Age Category",
+    x = "",
+    y = "Count"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+![](lab-09_files/figure-gfm/demographic%20distribution-4.png)<!-- -->
+
+## Exercise 5
+
+``` r
+ggplot(compas, aes(x = decile_score, y = two_year_recid)) +
+  geom_smooth(method = "lm", formula = y ~ x, color = "blue") +
+  stat_cor(method = "pearson", label.x = 2, label.y = 1) +
+  theme_bw() +
+  labs(
+    x = "Two-Year Recidivism (0 = No, 1 = Yes)",
+    y = "Risk Scores",
+    title = "Relationship Between Risk Scores and Actual Recidivism"
+  )
+```
+
+![](lab-09_files/figure-gfm/correlation%20graph-1.png)<!-- -->
+
+According to the graph, it shows that there is a positive correlation
+between two year recidivism and risk scores. This relationship suggests
+that higher risk score is actually related with higher rates of
+recidivism.
+
+## Exercise 6
+
+``` r
+compas_accuracy <- compas %>%
+  mutate(
+    correct_prediction = case_when(
+      decile_score >= 7 & two_year_recid == 1 ~ 1,
+      decile_score <= 4 & two_year_recid == 0 ~ 1,
+      TRUE ~ 0
+    )
+  )
+
+accuracy <- mean(compas_accuracy$correct_prediction)
+print(paste("Overall accuracy of COMPAS:", round(accuracy * 100, 2), "%"))
+```
+
+    ## [1] "Overall accuracy of COMPAS: 55.89 %"
+
+## Exercise 7
+
+According to the actual correlation and the prediction between the risk
+scores and actual recidivism, the relationship of the actual one is
+moderate and less strong than the prediction. The results suggest that
+while the COMPAS algorithm shows some predictive ability, it does not
+seem to align well with the actual correlation.
+
+# Part 3
+
+## Exercise 8
+
+``` r
+filtered_data <- compas %>%
+  filter(race %in% c("African-American", "Caucasian"))
+
+score_distribution <- filtered_data %>%
+  group_by(race, decile_score) %>%
+  summarise(count = n(), .groups = "drop")
+
+ggplot(score_distribution, aes(x = decile_score, y = count, color = race)) +
+  geom_line(size = 1) +
+  geom_point(size = 1.2) +
+  labs(
+    title = "Relationship Between Risk Scores and Actual Recidivism",
+    x = "Decile Score",
+    y = "Number of Defendants",
+    color = "Race"
+  ) 
+```
+
+    ## Warning: Using `size` aesthetic for lines was deprecated in ggplot2 3.4.0.
+    ## ℹ Please use `linewidth` instead.
+    ## This warning is displayed once every 8 hours.
+    ## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
+    ## generated.
+
+![](lab-09_files/figure-gfm/black%20and%20white%20defendants-1.png)<!-- -->
+
+There is a notable difference between black and white defendants, that
+the line representing African-Americans was flatter, indicating that
+African-American individuals were identified as having higher risk
+scores more frequently than to white defendants.
+
+## Exercise 9
+
+``` r
+highrisk_summary <- filtered_data %>%
+  mutate(high_risk = decile_score >= 7) %>%
+  group_by(race) %>%
+  summarise(
+    total = n(),
+    high_risk_n = sum(high_risk),
+    high_risk_percent = round(100 * mean(high_risk), 2)
+  )
+print(highrisk_summary)
+```
+
+    ## # A tibble: 2 × 4
+    ##   race             total high_risk_n high_risk_percent
+    ##   <chr>            <int>       <int>             <dbl>
+    ## 1 African-American  3696        1425              38.6
+    ## 2 Caucasian         2454         419              17.1
+
+According to the results, 38.56% of Black defendants were identified as
+high risk, while 17.07% of White defendants were identified as high
+risk, indicating that there is a more than twice larger disparity.
+
+## Exercise 10
+
+``` r
+##False Positive Rate
+non_recidivists <- compas %>%
+  filter(two_year_recid == 0)%>%
+  filter(race %in% c("African-American", "Caucasian")) %>%
+  mutate(high_risk = decile_score >= 7) %>%
+  group_by(race) %>%
+  summarise(
+    total_non_recidivists = n(),
+    false_positives = sum(high_risk),
+    false_positive_rate = round(100 * mean(high_risk), 2)
+  )
+
+##False Negative Rate
+recidivists <- compas %>%
+  filter(two_year_recid == 1) %>%
+  filter(race %in% c("African-American", "Caucasian")) %>%
+  mutate(low_risk = decile_score <= 4) %>%
+  group_by(race) %>%
+  summarise(
+    total_recidivists = n(),
+    false_negatives = sum(low_risk),
+    false_negative_rate = round(100 * mean(low_risk), 2)
+  )
+
+print(non_recidivists)
+```
+
+    ## # A tibble: 2 × 4
+    ##   race             total_non_recidivists false_positives false_positive_rate
+    ##   <chr>                            <int>           <int>               <dbl>
+    ## 1 African-American                  1795             447               24.9 
+    ## 2 Caucasian                         1488             136                9.14
+
+``` r
+print(recidivists)
+```
+
+    ## # A tibble: 2 × 4
+    ##   race             total_recidivists false_negatives false_negative_rate
+    ##   <chr>                        <int>           <int>               <dbl>
+    ## 1 African-American              1901             532                28.0
+    ## 2 Caucasian                      966             461                47.7
+
+## Exercise 11
+
+``` r
+fpr <- compas %>%
+  filter(race %in% c("African-American", "Caucasian"), two_year_recid == 0) %>%
+  mutate(high_risk = decile_score >= 7) %>%
+  group_by(race) %>%
+  summarise(rate = mean(high_risk), .groups = "drop") %>%
+  mutate(metric = "False Positive Rate")
+fnr <- compas %>%
+  filter(race %in% c("African-American", "Caucasian"), two_year_recid == 1) %>%
+  mutate(low_risk = decile_score <= 4) %>%
+  group_by(race) %>%
+  summarise(rate = mean(low_risk), .groups = "drop") %>%
+  mutate(metric = "False Negative Rate")
+
+metrics_df <- bind_rows(fpr, fnr)
+
+metrics_df <- metrics_df %>%
+  mutate(rate_percent = round(rate * 100, 2))
+
+##The visualization
+ggplot(metrics_df, aes(x = metric, y = rate_percent, fill = race)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "Compare the metrics between Black and white defendants",
+    x = "Metric",
+    y = "Rate (%)",
+    fill = "Race"
+  ) +
+  theme_minimal(base_size = 14) +
+  geom_text(aes(label = paste0(rate_percent, "%")), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5)
+```
+
+![](lab-09_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
+
+According to the graph, it is clear that Caucasian has a high rate in
+false negative rate, suggesting that White defendants were more likely
+to be viewed as not a criminal when they actually committed a crime.
+This rate is low for Black individuals in the study. Additionally, the
+false negative rate is higher for African-American people, suggesting
+that Black defendants were more likely to be considered as a criminal
+when they in fact did not committed a crime.
+
+# Part 4
+
+## Exercise 12
+
+``` r
+filtered_data <- compas %>%
+  filter(race %in% c("African-American", "Caucasian"))
+
+ggplot(filtered_data, aes(x = priors_count, y = decile_score, color = race)) +
+  geom_jitter(alpha = 0.4, width = 0.3, height = 0.3) + 
+  geom_smooth(method = "lm", se = FALSE, size = 1) +  
+  labs(
+    title = "Relationship Between Prior Convictions and COMPAS Risk Score by Race",
+    x = "Number of Prior Convictions",
+    y = "Risk Score (Decile)",
+    color = "Race"
+  ) 
+```
+
+    ## `geom_smooth()` using formula = 'y ~ x'
+
+![](lab-09_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
+
+In general, although both racial groups’ correlations suggested that
+higher risk score was associated with more number of prior convictions,
+there is a small differences between the two racial groups. It seems
+that with same amount of convictions, black people were identified as
+having higher risk scores than white, but the difference is small and
+seemed to disappear when the number of convictions is higher.
+
+## Exercise 13
+
+Based on the previous analyses, I think in terms of the error rates
+(false positive and false negative), there is a bias in the algorithm,
+indicating that Black individuals in the dataset are more likely to be
+considered as criminals when they are actually not. In terms of
+calibration, the algorithm tends to view Black individuals having higher
+risk scores when White and Black individuals committed the same amount
+of crime. However, this difference became smaller and changed to the
+opposite when the number of prior convictions become around 23. In
+general, I think the algorithm is biased (if I understand the questions
+and analyses correctly).
+
+# Part 5
+
+## Exercise 14
+
+I would first control for the race/ethnicity of the individuals in the
+dataset while creating the algorithm. More specifically, I would try to
+equalize the false positive and false negative rates across racial and
+gender groups. I would minimize racial disparities by ensuring that the
+algorithm does not produce systematically higher scores for one group
+over another. Additionally, to make it more fair, I would take the
+degree of crime into account when creating the algorithm. For example,
+the number of juvenile felonies should be weighted more heavily than the
+number of juvenile misdemeanors.
+
+## Exercise 15
+
+I googled for the definition of predictive parity since I am not sure
+how to answer this question, and I hope I could know more about this.
+When designing a “fair” algorithm for criminal risk assessment, the
+algorithm might take race as a predictor to assure the predictive
+parity, which can ensure the same positive predictive value across
+different social groups. This would make each racial, or even gender,
+group to have unequal false positive and false negative rates across
+groups.
+
+## Exercise 16
+
+In my opinion, the algorithmic risk assessment should not reinforce
+existing inequalities and be transparent about its rules/ standards when
+calculating risk factors. People, government, or institutions that are
+using the algorithm should be aware of the limitations and potential
+racial bias when making decisions or predictions. They should be able to
+challenge the bias and willing to correct with the goal of reducing any
+types of systemic biases.
+
+# Part 6
+
+## Exercise 17
+
+``` r
+ggplot(compas, aes(x = priors_count)) +
+  geom_bar(fill = "red") +
+  facet_wrap(~race) +  
+  labs(
+    title = "Distribution of Prior Convictions by Race",
+    x = "Number of Prior Convictions",
+    y = "Number of Defendants"
+  )
+```
+
+![](lab-09_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+
+According to the table, African-American defendants tended to have
+slightly more individuals with middle and higher numbers in prior
+convictions, while Caucasian, Hispanic, and other racial groups tended
+to have a decrease in number of defendants when the number of prior
+convictions went higher. Additionally, since there is generally more
+African American with prioro convictions in the current dataset, their
+data has contributed more when calculating the risk scores (not sure if
+this makes sense?).
+
+## Exercise 18
+
+``` r
+## Charge degree
+ggplot(compas, aes( x = decile_score, fill = c_charge_degree
+                      ))+
+  geom_histogram(stat = "count")+
+  scale_fill_manual(labels = c("Felony", "Misdemeanor"), values = c("red", "blue"))+
+  facet_grid(c_charge_degree ~ race, labeller = as_labeller( c(
+        'African-American' = "Black",
+        'Caucasian' = "White",
+        'Other' = "Other",
+        'Hispanic' = "Hispanic",
+        'Asian' = "Asian",
+        'Native American' = "Native",
+        'F' = "Felony",
+       'M' = "Misdemeanor"
+        )))+
+  labs(
+    x = "Risk Scores",
+    y = "Number of Defendants",
+    title = "charge degree distributions across racial groups"
+      )
+```
+
+    ## Warning in geom_histogram(stat = "count"): Ignoring unknown parameters:
+    ## `binwidth`, `bins`, and `pad`
+
+![](lab-09_files/figure-gfm/other%20variables-1.png)<!-- -->
+
+``` r
+## Age
+ggplot(compas, aes( x = decile_score, fill = age_cat
+                      ))+
+  geom_histogram(stat = "count")+
+  scale_fill_manual(values = c("pink", "lightblue","lightgreen"))+
+  facet_grid(age_cat ~ race, labeller = as_labeller( c(
+        'African-American' = "Black",
+        'Caucasian' = "White",
+        'Other' = "Other",
+        'Hispanic' = "Hispanic",
+        'Asian' = "Asian",
+        'Native American' = "Native",
+        'Less than 25' = "< 25",
+        '25 - 45' = "25 - 45",
+     'Greater than 45' = "> 45"
+        )))+
+  labs(
+    x = "Risk Scores",
+    y = "Number of Defendants",
+    title = "age category distributions across racial groups"
+      )
+```
+
+    ## Warning in geom_histogram(stat = "count"): Ignoring unknown parameters:
+    ## `binwidth`, `bins`, and `pad`
+
+![](lab-09_files/figure-gfm/other%20variables-2.png)<!-- -->
+
+According to the graph of charge degree, the distribution of
+African-American group is different from the White, Hispanic, and Other
+groups (the Native and Asian American groups had too little data to
+notice a pattern of distribution). Black group showed a even amount of
+number in prior convictions while the rest racial groups had decrease in
+number of prior convictions along with risk scores. It seems like that
+Black defendants, despite of charge degree type, are more likely to
+receive higher risk scores than white defendants with similar charges.
+This distribution shows that the algorithm might be more likely to
+assign Black individual with higher scores when they committed either
+felony or misdemeanor crimes, comparing with other racial groups. For
+the age graph, it seems like most of the convictions were committed by
+individuals from 25 to 45. This variable also showed different
+distribution across racial groups, particularly during 25 to 45 year
+old. It seems to suggest that African-American individuals in the
+dataset were assigned with having higher risk scores across different
+age groups.
+
+## Exercise 19
+
+``` r
+# Create a logistic regression model
+recid_model <- glm(
+  two_year_recid ~ age + priors_count + c_charge_degree,
+  data = compas,
+  family = binomial()
+)
+
+# Add predicted probabilities to the dataset
+compas_new <- compas %>%
+  mutate(
+    predicted_prob = predict(recid_model, type = "response"),
+    our_high_risk = predicted_prob >= 0.5
+  )
+```
+
+## Exercise 20
+
+``` r
+##False Positive Rate
+newnon_recidivists <- compas_new %>%
+  filter(two_year_recid == 0, race %in% c("African-American", "Caucasian")) %>%
+  mutate(high_risk = predicted_prob >= 0.5) %>%  # define high risk
+  group_by(race) %>%
+  summarise(
+    total_non_recidivists = n(),
+    false_positives = sum(high_risk),
+    false_positive_rate = round(100 * mean(high_risk), 2)
+  )
+
+##we did not decide what is the standard for low risk, so I am not sure how to calculate the False Negative Rate. I guess low risk would just be <.33??
+newrecidivists <- compas_new %>%
+  filter(two_year_recid == 1, race %in% c("African-American", "Caucasian")) %>%
+  mutate(low_risk = predicted_prob < 0.33) %>%  # define low risk
+  group_by(race) %>%
+  summarise(
+    total_recidivists = n(),
+    false_negatives = sum(low_risk),
+    false_negative_rate = round(100 * mean(low_risk), 2)
+  )
+
+print(newnon_recidivists)
+```
+
+    ## # A tibble: 2 × 4
+    ##   race             total_non_recidivists false_positives false_positive_rate
+    ##   <chr>                            <int>           <int>               <dbl>
+    ## 1 African-American                  1795             516                28.8
+    ## 2 Caucasian                         1488             212                14.2
+
+``` r
+print(newrecidivists)
+```
+
+    ## # A tibble: 2 × 4
+    ##   race             total_recidivists false_negatives false_negative_rate
+    ##   <chr>                        <int>           <int>               <dbl>
+    ## 1 African-American              1901             146                7.68
+    ## 2 Caucasian                      966             208               21.5
+
+``` r
+newnon <- compas_new %>%
+  filter(two_year_recid == 0, race %in% c("African-American", "Caucasian")) %>%
+  mutate(high_risk = predicted_prob >= 0.5) %>% 
+  group_by(race) %>%
+  summarise(rate = mean(high_risk), .groups = "drop") %>%
+  mutate(newmetric = "False Positive Rate")
+
+newfnr <- compas_new %>%
+  filter(race %in% c("African-American", "Caucasian"), two_year_recid == 1) %>%
+  mutate(low_risk = predicted_prob < 0.33) %>%
+  group_by(race) %>%
+  summarise(rate = mean(low_risk), .groups = "drop") %>%
+  mutate(newmetric = "False Negative Rate")
+
+newmetrics <- bind_rows(newnon, newfnr)
+
+newmetrics <- newmetrics %>%
+  mutate(rate_percent = round(rate * 100, 2))
+
+##The visualization
+ggplot(newmetrics, aes(x = newmetric, y = rate_percent, fill = race)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "metrics between Black and white defendants, new Model",
+    x = "Metric",
+    y = "Rate (%)",
+    fill = "Race"
+  ) +
+  theme_minimal(base_size = 14) +
+  geom_text(aes(label = paste0(rate_percent, "%")), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5)
+```
+
+![](lab-09_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+
+According to the table, I believe the new algorithm is less biased, such
+as that the highest rate for False Negative rate for African-American is
+much smaller comparing with the COMPAS. However, the false positive for
+African-American was slightly larger than COMPAS, indicating that the
+model is more likely to identify African American individuals as having
+high risk when they did not committed a crime.
