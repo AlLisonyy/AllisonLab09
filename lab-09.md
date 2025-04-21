@@ -752,11 +752,85 @@ ggplot(newmetrics, aes(x = newmetric, y = rate_percent, fill = race)) +
             vjust = -0.5)
 ```
 
-![](lab-09_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+![](lab-09_files/figure-gfm/new%20metrics-1.png)<!-- -->
 
 According to the table, I believe the new algorithm is less biased, such
 as that the highest rate for False Negative rate for African-American is
-much smaller comparing with the COMPAS. However, the false positive for
-African-American was slightly larger than COMPAS, indicating that the
-model is more likely to identify African American individuals as having
-high risk when they did not committed a crime.
+much smaller comparing with the COMPAS. In general, the new model is
+less biased, particulalry for the false negative rates.However, the
+false positive for African-American was slightly larger than COMPAS,
+indicating that the model is more likely to identify African American
+individuals as having high risk when they did not committed a crime.
+
+## Exercise 21
+
+``` r
+# Create a logistic regression model with race
+recid_model_with_race <- glm(
+  two_year_recid ~ age + priors_count + c_charge_degree + race,
+  data = compas,
+  family = binomial()
+)
+
+# Add predicted probabilities to the dataset
+compas_race <- compas %>%
+  mutate(
+    predicted_prob_with_race = predict(recid_model_with_race, type = "response"),
+    race_high_risk = predicted_prob_with_race >= 0.5
+  )
+```
+
+## Exercise 22
+
+``` r
+nfpr <- compas_race %>%
+  filter(two_year_recid == 0, race %in% c("African-American", "Caucasian")) %>%
+  mutate(high_risk = predicted_prob_with_race >= 0.5) %>% 
+  group_by(race) %>%
+  summarise(rate = mean(high_risk), .groups = "drop") %>%
+  mutate(nmetric = "False Positive Rate")
+
+nfnr <- compas_race %>%
+  filter(race %in% c("African-American", "Caucasian"), two_year_recid == 1) %>%
+  mutate(low_risk = predicted_prob_with_race < 0.33) %>%
+  group_by(race) %>%
+  summarise(rate = mean(low_risk), .groups = "drop") %>%
+  mutate(nmetric = "False Negative Rate")
+
+nmetrics <- bind_rows(nfpr, nfnr)
+
+nmetrics <- nmetrics %>%
+  mutate(rate_percent = round(rate * 100, 2))
+
+##The visualization
+ggplot(nmetrics, aes(x = nmetric, y = rate_percent, fill = race)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "metrics between Black and white defendants, new Model",
+    x = "Metric",
+    y = "Rate (%)",
+    fill = "Race"
+  ) +
+  theme_minimal(base_size = 14) +
+  geom_text(aes(label = paste0(rate_percent, "%")), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5)
+```
+
+![](lab-09_files/figure-gfm/new%20new%20metrics-1.png)<!-- -->
+
+The false positive rate for Black defendants increased by over 4%, while
+the white FPR stayed the same. Additionally, the difference in false
+negatives between groups was still large, suggesting white recidivists
+were still more likely to be wrongly classified as low risk. Therefore,
+I speculate that adding race as a variable in this model makes it less
+fair.
+
+\##Exercise 23 I believe algorithm like COMPAS can be used, but has to
+be used with caution. It should only serve as a reference point for
+predicting or making decisions about criminal risk scores. Although we
+have tried three types of algorithms, there is still relatively high
+false positive and false negative rates, which should be clearly claimed
+and understood to all the people who is using the model. This also
+highlights the importance of transparency, that the algorithms to all
+people.
